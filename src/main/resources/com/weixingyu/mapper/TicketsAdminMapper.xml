@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.weixingyu.campusrepairticketsystem.mapper.TacketAdminMapper">
+    <select id="queryByPage"
+            resultType="com.weixingyu.campusrepairticketsystem.pojo.response.QueryTicketsRow"
+            parameterType="com.weixingyu.campusrepairticketsystem.pojo.request.QueryTicketsRequest">
+        SELECT t.id,
+        t.ticket_no AS ticket_no,
+        t.title AS title,
+        r.name AS category_name,
+        b.name AS building_name,
+        t.room AS room,
+        t.priority AS priority,
+        t.status AS status,
+        reporter.name AS reporter_name,
+        assignee.name AS assignee_name,
+        t.created_at AS created_at,
+        t.updated_at AS updated_at
+        FROM ticket t
+        LEFT JOIN building b ON t.building_id = b.id
+        LEFT JOIN repair_category r ON t.category_id = r.id
+        LEFT JOIN sys_user reporter ON t.reporter_id = reporter.id
+        LEFT JOIN sys_user assignee ON t.assignee_id = assignee.id
+        <where>
+            <if test="status != null and status != ''">
+                AND t.status = #{status}
+            </if>
+            <if test="categoryId != null">
+                AND t.category_id = #{categoryId}
+            </if>
+            <if test="buildingId != null">
+                AND t.building_id = #{buildingId}
+            </if>
+            <if test="priority != null and priority != ''">
+                AND t.priority = #{priority}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (t.ticket_no LIKE CONCAT('%', #{keyword}, '%')
+                OR t.title LIKE CONCAT('%', #{keyword}, '%')
+                OR t.room LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="createdFrom != null">
+                AND t.created_at &gt;= #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND t.created_at &lt;= #{createdTo}
+            </if>
+            <if test="reporterKeyword != null and reporterKeyword != ''">
+                AND (reporter.name LIKE CONCAT('%', #{reporterKeyword}, '%')
+                OR reporter.username LIKE CONCAT('%', #{reporterKeyword}, '%'))
+            </if>
+            <if test="assigneeKeyword != null and assigneeKeyword != ''">
+                AND (assignee.name LIKE CONCAT('%', #{assigneeKeyword}, '%')
+                OR assignee.username LIKE CONCAT('%', #{assigneeKeyword}, '%'))
+            </if>
+            <if test="reporterId != null">
+                AND t.reporter_id = #{reporterId}
+            </if>
+            <if test="assigneeId != null">
+                AND t.assignee_id = #{assigneeId}
+            </if>
+        </where>
+        ORDER BY t.updated_at DESC, t.id DESC
+    </select>
+
+    <select id="findTicketDetail"
+            resultType="com.weixingyu.campusrepairticketsystem.pojo.response.TicketDetailResponse">
+        SELECT t.id,
+               t.ticket_no,
+               t.title,
+               t.description,
+               t.category_id,
+               t.building_id,
+               t.asset_id,
+               t.category_name_snapshot AS category_name,
+               t.building_name_snapshot AS building_name,
+               t.asset_name_snapshot    AS asset_name,
+               t.room,
+               t.priority,
+               t.status,
+               reporter.name            AS reporter_name,
+               assignee.name            AS assignee_name,
+               t.resolution,
+               t.version,
+               t.created_at,
+               t.sla_due_at
+        FROM ticket t
+                 LEFT JOIN sys_user reporter ON reporter.id = t.reporter_id
+                 LEFT JOIN sys_user assignee ON assignee.id = t.assignee_id
+        WHERE t.id = #{ticketId}
+    </select>
+
+    <select id="findReporterId" resultType="java.lang.Long">
+        SELECT reporter_id
+        FROM ticket
+        WHERE id = #{ticketId}
+    </select>
+
+    <select id="findAssigneeId" resultType="java.lang.Long">
+        SELECT assignee_id
+        FROM ticket
+        WHERE id = #{ticketId}
+    </select>
+
+    <select id="findTicketAttachments"
+            resultType="com.weixingyu.campusrepairticketsystem.pojo.response.TicketAttachmentResponse">
+        SELECT file_url AS url
+        FROM ticket_attachment
+        WHERE ticket_id = #{ticketId}
+          AND file_type = 'REPORT'
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="findTicketHistory"
+            resultType="com.weixingyu.campusrepairticketsystem.pojo.response.TicketHistoryResponse">
+        SELECT h.id,
+               h.from_status,
+               h.to_status,
+               h.operator_id,
+               operator.name AS operator_name,
+               h.action,
+               h.remark,
+               h.created_at
+        FROM ticket_history h
+                 LEFT JOIN sys_user operator ON operator.id = h.operator_id
+        WHERE h.ticket_id = #{ticketId}
+        ORDER BY h.event_version ASC, h.id ASC
+    </select>
+
+    <update id="updateTicket">
+        UPDATE ticket
+        <set>
+            <if test="ticketNo != null">ticket_no = #{ticketNo},</if>
+            <if test="reporterKeyword != null and reporterKeyword != ''">
+                AND (reporter.name LIKE CONCAT('%', #{reporterKeyword}, '%')
+                OR reporter.username LIKE CONCAT('%', #{reporterKeyword}, '%'))
+            </if>
+            <if test="assigneeKeyword != null and assigneeKeyword != ''">
+                AND (assignee.name LIKE CONCAT('%', #{assigneeKeyword}, '%')
+                OR assignee.username LIKE CONCAT('%', #{assigneeKeyword}, '%'))
+            </if>
+            <if test="reporterId != null">reporter_id = #{reporterId},</if>
+            <if test="assigneeId != null">assignee_id = #{assigneeId},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="buildingId != null">building_id = #{buildingId},</if>
+            <if test="assetId != null">asset_id = #{assetId},</if>
+            <if test="categoryNameSnapshot != null">category_name_snapshot = #{categoryNameSnapshot},</if>
+            <if test="buildingNameSnapshot != null">building_name_snapshot = #{buildingNameSnapshot},</if>
+            <if test="assetNameSnapshot != null">asset_name_snapshot = #{assetNameSnapshot},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="room != null">room = #{room},</if>
+            <if test="priority != null">priority = #{priority},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="resolution != null">resolution = #{resolution},</if>
+            <if test="slaDueAt != null">sla_due_at = #{slaDueAt},</if>
+            <if test="createdAt != null">created_at = #{createdAt},</if>
+            version = version + 1,
+            updated_at = CURRENT_TIMESTAMP(3)
+        </set>
+        WHERE id = #{id}
+        AND version = #{version}
+    </update>
+</mapper>

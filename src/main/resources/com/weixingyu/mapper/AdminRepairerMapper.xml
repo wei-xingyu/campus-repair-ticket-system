@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.weixingyu.campusrepairticketsystem.mapper.AdminRepairerMapper">
+    <resultMap id="repairerCandidate" type="com.weixingyu.campusrepairticketsystem.pojo.response.QueryAllRepairersResponse">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="name" column="name"/>
+        <result property="phone" column="phone"/>
+        <result property="activeTicketCount" column="activeTicketCount"/>
+        <collection property="specialtyCategoryNames" column="id" select="findSpecialtyCategoryNames"/>
+        <collection property="responsibleAreaNames" column="id" select="findResponsibleAreaNames"/>
+    </resultMap>
+
+    <select id="findSpecialtyCategoryNames" resultType="java.lang.String">
+        SELECT c.name
+        FROM repairer_specialty_category s
+        JOIN repair_category c ON c.id = s.category_id
+        WHERE s.repairer_id = #{repairerId} AND c.enabled = 1
+        ORDER BY c.name, c.id
+    </select>
+
+    <select id="findResponsibleAreaNames" resultType="java.lang.String">
+        SELECT b.name
+        FROM repairer_responsible_building a
+        JOIN building b ON b.id = a.building_id
+        WHERE a.repairer_id = #{repairerId} AND b.enabled = 1
+        ORDER BY b.name, b.id
+    </select>
+
+    <select id="queryAllRepairers"
+            resultMap="repairerCandidate">
+        SELECT u.id,
+               u.username,
+               u.name,
+               u.phone,
+               COUNT(t.id) AS activeTicketCount
+        FROM sys_user u
+                 JOIN sys_user_role ur
+                      ON ur.user_id = u.id
+                 JOIN sys_role r
+                      ON r.id = ur.role_id
+                 LEFT JOIN ticket t
+                           ON t.assignee_id = u.id
+                               AND t.status NOT IN ('COMPLETED', 'CANCELLED', 'CLOSED')
+        WHERE r.role_code = 'REPAIRER'
+          AND u.enabled = 1
+          AND (
+              NULLIF(TRIM(#{keyword}), '') IS NULL
+              OR u.username LIKE CONCAT('%', TRIM(#{keyword}), '%')
+              OR u.name LIKE CONCAT('%', TRIM(#{keyword}), '%')
+            )
+        GROUP BY u.id, u.username, u.name, u.phone
+        ORDER BY u.id;
+    </select>
+
+    <select id="getRepairList"
+            resultType="com.weixingyu.campusrepairticketsystem.pojo.response.RepairManageResponse">
+        SELECT u.id,
+               u.username,
+               u.name,
+               u.phone,
+               COUNT(t.id) AS activeTicketCount,
+               u.enabled
+        FROM sys_user u
+        JOIN sys_user_role ur ON ur.user_id = u.id
+        JOIN sys_role r ON r.id = ur.role_id
+        LEFT JOIN ticket t ON t.assignee_id = u.id
+            AND t.status NOT IN ('COMPLETED', 'CANCELLED', 'CLOSED')
+        WHERE r.role_code = 'REPAIRER'
+        <if test="enabled != null">
+            AND u.enabled = #{enabled}
+        </if>
+        AND (
+            NULLIF(TRIM(#{keyword}), '') IS NULL
+            OR u.username LIKE CONCAT('%', TRIM(#{keyword}), '%')
+            OR u.name LIKE CONCAT('%', TRIM(#{keyword}), '%')
+        )
+        GROUP BY u.id, u.username, u.name, u.phone, u.enabled
+        ORDER BY u.id
+    </select>
+    <select id="findRepairerById"
+            resultType="com.weixingyu.campusrepairticketsystem.pojo.response.RepairManageResponse">
+        SELECT u.id,
+               u.username,
+               u.name,
+               u.phone,
+               COUNT(t.id) AS activeTicketCount,
+               u.enabled
+        FROM sys_user u
+        JOIN sys_user_role ur ON ur.user_id = u.id
+        JOIN sys_role r ON r.id = ur.role_id
+        LEFT JOIN ticket t ON t.assignee_id = u.id
+            AND t.status NOT IN ('COMPLETED', 'CANCELLED', 'CLOSED')
+        WHERE r.role_code = 'REPAIRER'
+        AND u.id = #{id}
+        GROUP BY u.id, u.username, u.name, u.phone, u.enabled
+    </select>
+</mapper>

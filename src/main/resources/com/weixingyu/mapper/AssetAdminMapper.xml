@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.weixingyu.campusrepairticketsystem.mapper.AdminAssetMapper">
+    <select id="getAssetList"
+            resultType="com.weixingyu.campusrepairticketsystem.pojo.request.AssetRequest">
+        SELECT id,building_id, name, asset_code, location,enabled
+        FROM repair_asset
+        <where>
+            <if test="enabled != null">
+                enabled = #{enabled}
+            </if>
+            <if test="buildingId != null">
+                AND building_id = #{buildingId}
+            </if>
+        </where>
+        ORDER BY id ASC
+    </select>
+
+</mapper>
