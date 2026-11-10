@@ -1,22 +1,38 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import com.weixingyu.campusrepairticketsystem.cache.RedisCacheClient;
 import com.weixingyu.campusrepairticketsystem.mapper.BasicDataMapper;
 import com.weixingyu.campusrepairticketsystem.pojo.request.AdminCategoryRequest;
+import com.weixingyu.campusrepairticketsystem.pojo.response.CategoriesResponse;
 import com.weixingyu.campusrepairticketsystem.pojo.response.Result;
 import com.weixingyu.campusrepairticketsystem.service.BasicDataService;
+import com.weixingyu.campusrepairticketsystem.utils.RedisConstants;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class BasicDataServiceImpl implements BasicDataService {
+    private static final String ENABLED_CATEGORIES_CACHE_ID = "enabled";
+
     @Resource
     private BasicDataMapper basicDataMapper;
 
+    @Resource
+    private RedisCacheClient redisCacheClient;
+
     @Override
     public Result queryCategories() {
-        return Result.success(basicDataMapper.queryCategories());
+        CategoriesResponse[] categories = redisCacheClient.get(
+                RedisConstants.CATEGORIES_KEY,
+                ENABLED_CATEGORIES_CACHE_ID,
+                CategoriesResponse[].class,
+                ignored -> basicDataMapper.queryCategories(),
+                RedisConstants.CATEGORIES_TTL,
+                TimeUnit.MINUTES);
+        return Result.success(categories);
     }
 
     @Override
@@ -43,7 +59,9 @@ public class BasicDataServiceImpl implements BasicDataService {
             return Result.error("故障类别名称已存在");
         }
 
-        basicDataMapper.createCategory(adminCategoryRequest);
+        if (basicDataMapper.createCategory(adminCategoryRequest) > 0) {
+            redisCacheClient.delete(RedisConstants.CATEGORIES_KEY + ENABLED_CATEGORIES_CACHE_ID);
+        }
         return Result.success(adminCategoryRequest);
     }
 
@@ -76,7 +94,9 @@ public class BasicDataServiceImpl implements BasicDataService {
             adminCategoryRequest.setEnabled(existing.getEnabled());
         }
 
-        basicDataMapper.updateCategory(adminCategoryRequest);
+        if (basicDataMapper.updateCategory(adminCategoryRequest) > 0) {
+            redisCacheClient.delete(RedisConstants.CATEGORIES_KEY + ENABLED_CATEGORIES_CACHE_ID);
+        }
         return Result.success(adminCategoryRequest);
     }
 
@@ -88,7 +108,9 @@ public class BasicDataServiceImpl implements BasicDataService {
             return Result.error("故障类别不存在");
         }
 
-        basicDataMapper.updateCategoryStatus(id, adminCategoryRequest.getEnabled());
+        if (basicDataMapper.updateCategoryStatus(id, adminCategoryRequest.getEnabled()) > 0) {
+            redisCacheClient.delete(RedisConstants.CATEGORIES_KEY + ENABLED_CATEGORIES_CACHE_ID);
+        }
         return Result.success(Map.of("id", id, "enabled", adminCategoryRequest.getEnabled()));
     }
 }

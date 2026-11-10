@@ -195,7 +195,7 @@ public interface TacketAdminMapper {
                                     @Param("fromStatus") String fromStatus,
                                     @Param("operatorId") Long operatorId);
 
-    @Update("UPDATE ticket SET status = 'PROCESSING', version = version + 1, updated_at = CURRENT_TIMESTAMP(3) WHERE id = #{id} AND version = #{version} AND status = 'COMPLETED' AND reporter_id = #{reporterId}")
+    @Update("UPDATE ticket SET status = 'PROCESSING', version = version + 1, updated_at = CURRENT_TIMESTAMP(3) WHERE id = #{id} AND version = #{version} AND status = 'PENDING_CONFIRMATION' AND reporter_id = #{reporterId}")
     int studentReopenTicket(@Param("id") Long id, @Param("reporterId") Long reporterId, @Param("version") Integer version);
 
     @Insert("INSERT INTO ticket_history (ticket_id, event_version, from_status, to_status, action, " +

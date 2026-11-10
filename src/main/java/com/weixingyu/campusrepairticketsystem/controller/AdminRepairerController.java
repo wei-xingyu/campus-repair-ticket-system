@@ -42,7 +42,7 @@ public class AdminRepairerController {
     }
 
     @RequireRole("ADMIN")
-    @GetMapping("/admin/repairers/{id}")
+    @GetMapping("/repairers/{id}")
     public Result getRepairerDetailed(@PathVariable @Positive(message="ID必须为正数") Long id){
         return adminRepairerService.getRepairerDetailed(id);
     }

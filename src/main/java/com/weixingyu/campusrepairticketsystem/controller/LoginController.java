@@ -1,13 +1,11 @@
 package com.weixingyu.campusrepairticketsystem.controller;
 
+import com.weixingyu.campusrepairticketsystem.pojo.entity.LoginUser;
 import com.weixingyu.campusrepairticketsystem.pojo.request.LoginRequest;
-import com.weixingyu.campusrepairticketsystem.pojo.response.LoginResponse;
 import com.weixingyu.campusrepairticketsystem.pojo.response.Result;
 import com.weixingyu.campusrepairticketsystem.service.LoginService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
-import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,17 +17,17 @@ public class LoginController {
     private LoginService loginService;
 
     @PostMapping("/login")
-    public Result login(@Valid @RequestBody LoginRequest loginRequest, HttpSession session) {
-        return loginService.login(loginRequest, session);
+    public Result login(@Valid @RequestBody LoginRequest loginRequest) {
+        return loginService.login(loginRequest);
     }
 
     @PostMapping("/logout")
-    public Result logout(HttpSession session) {
-        return loginService.logout(session);
+    public Result logout(@RequestHeader("Authorization") String token) {
+        return loginService.logout(token);
     }
 
     @GetMapping("/me")
-    public Result me(@RequestAttribute("loginUser") LoginResponse loginUser) {
+    public Result me(@RequestAttribute("loginUser") LoginUser loginUser) {
         return loginService.me(loginUser);
     }
 }

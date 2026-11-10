@@ -1,5 +1,8 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import cn.hutool.core.util.RandomUtil;
+import com.weixingyu.campusrepairticketsystem.cache.RedisCacheClient;
+import com.weixingyu.campusrepairticketsystem.pojo.entity.LoginUser;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.weixingyu.campusrepairticketsystem.mapper.AdminRepairerMapper;
@@ -10,6 +13,7 @@ import com.weixingyu.campusrepairticketsystem.pojo.request.*;
 import com.weixingyu.campusrepairticketsystem.pojo.response.*;
 import com.weixingyu.campusrepairticketsystem.service.TacketAdminService;
 import com.weixingyu.campusrepairticketsystem.utils.AliyunOSSOperator;
+import com.weixingyu.campusrepairticketsystem.utils.RedisConstants;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -22,6 +26,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class TacketAdminServiceImpl implements TacketAdminService {
@@ -37,10 +42,13 @@ public class TacketAdminServiceImpl implements TacketAdminService {
     @Resource
     private AliyunOSSOperator aliyunOSSOperator;
 
+    @Resource
+    private RedisCacheClient redisCacheClient;
+
     @Override
     // 工单和附件必须一起成功或一起撤销，避免只保存一部分。
     @Transactional
-    public Result createTackets(CreateTacketsRequest createTacketsRequest, LoginResponse loginUser) {
+    public Result createTackets(CreateTacketsRequest createTacketsRequest, LoginUser loginUser) {
 
         // 清理首尾空格，并检查必填内容和数据库字段长度限制。
         String title = trimToNull(createTacketsRequest.getTitle());
@@ -127,11 +135,12 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         createTacketsResponse.setCreatedAt(tacketAdminMapper.findCreatedAt(ticket.getId()));
         createTacketsResponse.setTicketNo(ticket.getTicketNo());
         createTacketsResponse.setStatus(ticket.getStatus());
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + ticket.getId());
         return Result.success(createTacketsResponse);
     }
 
     @Override
-    public Result queryByPage(QueryTicketsRequest queryTicketsRequest, LoginResponse loginUser) {
+    public Result queryByPage(QueryTicketsRequest queryTicketsRequest, LoginUser loginUser) {
 
         if (queryTicketsRequest.getPage() == null) {
             queryTicketsRequest.setPage(1);
@@ -184,23 +193,30 @@ public class TacketAdminServiceImpl implements TacketAdminService {
     }
 
     @Override
-    public Result queryById(Long id, LoginResponse loginUser) {
-
-        TicketDetailResponse detail = tacketAdminMapper.findTicketDetail(id);
+    public Result queryById(Long id, LoginUser loginUser) {
+        long ttlMinutes = RedisConstants.TICKET_DETAILED_TTL + RandomUtil.randomInt(-5, 6);
+        TicketDetailResponse detail = redisCacheClient.get(
+                RedisConstants.TICKET_DETAILED_KEY, id, TicketDetailResponse.class,
+                this::loadTicketDetail, ttlMinutes, TimeUnit.MINUTES);
         if (detail == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "工单不存在");
         }
-
         requireTicketReadAccess(id, loginUser);
-
-        detail.setAttachments(tacketAdminMapper.findTicketAttachments(id));
-        detail.setHistory(tacketAdminMapper.findTicketHistory(id));
         return Result.success(detail);
+    }
+
+    private TicketDetailResponse loadTicketDetail(Long id) {
+        TicketDetailResponse detail = tacketAdminMapper.findTicketDetail(id);
+        if (detail != null) {
+            detail.setAttachments(tacketAdminMapper.findTicketAttachments(id));
+            detail.setHistory(tacketAdminMapper.findTicketHistory(id));
+        }
+        return detail;
     }
 
     @Override
     @Transactional
-    public Result adminDispatch(Long id, AdminDispatchRequest adminDispatchRequest, LoginResponse loginUser) {
+    public Result adminDispatch(Long id, AdminDispatchRequest adminDispatchRequest, LoginUser loginUser) {
 
         SysUser targetRepairer = adminRepairerMapper.findEnabledRepairerById(adminDispatchRequest.getAssigneeId());
         if (targetRepairer == null) {
@@ -239,13 +255,14 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (historyInserted != 1) {
             throw new IllegalStateException("派单历史写入失败");
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
 
     }
 
     @Override
     @Transactional
-    public Result adminSendTickets(Long id, AdminSendTicketsRequest request, LoginResponse loginUser) {
+    public Result adminSendTickets(Long id, AdminSendTicketsRequest request, LoginUser loginUser) {
 
         SysUser targetRepairer = adminRepairerMapper.findEnabledRepairerById(request.getAssigneeId());
         if (targetRepairer == null) {
@@ -269,12 +286,13 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (success != 1) {
             throw new IllegalStateException("转派历史写入失败");
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
     }
 
     @Override
     @Transactional
-    public Result repairerAccept(Long id, ExpectedVersionRequest request, LoginResponse loginUser) {
+    public Result repairerAccept(Long id, ExpectedVersionRequest request, LoginUser loginUser) {
 
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
@@ -297,12 +315,13 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (success != 1) {
             throw new IllegalStateException("接单历史写入失败");
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
     }
 
     @Override
     @Transactional
-    public Result repairerReject(Long id, ReasonVersionRequest request, LoginResponse loginUser) {
+    public Result repairerReject(Long id, ReasonVersionRequest request, LoginUser loginUser) {
 
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
@@ -329,12 +348,13 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (success != 1) {
             throw new IllegalStateException("拒绝接单失败");
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
     }
 
     @Transactional
     @Override
-    public Result repairerStart(Long id, RepairerStartRequest request, LoginResponse loginUser) {
+    public Result repairerStart(Long id, RepairerStartRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "工单不存在");
@@ -348,20 +368,21 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (!loginUser.getId().equals(targetTicket.getAssigneeId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前用户不是此工单被分派的维修人员");
         }
-        int updated = tacketAdminMapper.repairerStartTicket(id,loginUser.getId(), request.getExpectedVersion());
+        int updated = tacketAdminMapper.repairerStartTicket(id, loginUser.getId(), request.getExpectedVersion());
         if (updated != 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "工单已被其他操作更新，请刷新后重试");
         }
-        int success = tacketAdminMapper.repairerStartTicketHistory(id,request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId());
+        int success = tacketAdminMapper.repairerStartTicketHistory(id, request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId());
         if (success != 1) {
             throw new IllegalStateException("开始处理失败");
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
     }
 
     @Transactional
     @Override
-    public Result repairerResolution(Long id, RepairerResolutionRequest request, LoginResponse loginUser) {
+    public Result repairerResolution(Long id, RepairerResolutionRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "工单不存在");
@@ -387,7 +408,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (updated != 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "工单已被其他操作更新，请刷新后重试");
         }
-        int success = tacketAdminMapper.repairerResolutionTicketHistory(id,request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId(),request.getResolution());
+        int success = tacketAdminMapper.repairerResolutionTicketHistory(id, request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId(), request.getResolution());
         if (success != 1) {
             throw new IllegalStateException("处理结果历史写入失败");
         }
@@ -398,12 +419,13 @@ public class TacketAdminServiceImpl implements TacketAdminService {
                 }
             }
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
     }
 
     @Transactional
     @Override
-    public Result studentConfirm(Long id, ExpectedVersionRequest request, LoginResponse loginUser) {
+    public Result studentConfirm(Long id, ExpectedVersionRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "工单不存在");
@@ -421,16 +443,17 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (updated != 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "工单已被其他操作更新，请刷新后重试");
         }
-        int success = tacketAdminMapper.studentConfirmTicketHistory(id,request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId());
+        int success = tacketAdminMapper.studentConfirmTicketHistory(id, request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId());
         if (success != 1) {
             throw new IllegalStateException("确认完成历史写入失败");
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
     }
 
     @Transactional
     @Override
-    public Result studentReopen(Long id, ReasonVersionRequest request, LoginResponse loginUser) {
+    public Result studentReopen(Long id, ReasonVersionRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "工单不存在");
@@ -438,7 +461,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (!targetTicket.getVersion().equals(request.getExpectedVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前工单版本号不一致");
         }
-        if (!"COMPLETED".equals(targetTicket.getStatus())) {
+        if (!"PENDING_CONFIRMATION".equals(targetTicket.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前工单状态非法");
         }
         if (!loginUser.getId().equals(targetTicket.getReporterId())) {
@@ -448,16 +471,17 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (updated != 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "工单已被其他操作更新，请刷新后重试");
         }
-        int success = tacketAdminMapper.studentReopenTicketHistory(id,request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId(), request.getReason());
+        int success = tacketAdminMapper.studentReopenTicketHistory(id, request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId(), request.getReason());
         if (success != 1) {
             throw new IllegalStateException("重新处理历史写入失败");
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
     }
 
     @Transactional
     @Override
-    public Result studentCancel(Long id, CancelTicketRequest request, LoginResponse loginUser) {
+    public Result studentCancel(Long id, CancelTicketRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "工单不存在");
@@ -465,7 +489,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (!targetTicket.getVersion().equals(request.getExpectedVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前工单版本号不一致");
         }
-        if (!"PENDING_ACCEPTANCE".equals(targetTicket.getStatus())&&!"PENDING_ASSIGNMENT".equals(targetTicket.getStatus())&&!"ACCEPTED".equals(targetTicket.getStatus())) {
+        if (!"PENDING_ACCEPTANCE".equals(targetTicket.getStatus()) && !"PENDING_ASSIGNMENT".equals(targetTicket.getStatus()) && !"ACCEPTED".equals(targetTicket.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前工单状态非法");
         }
         if (!loginUser.getId().equals(targetTicket.getReporterId())) {
@@ -475,16 +499,17 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (updated != 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "工单已被其他操作更新，请刷新后重试");
         }
-        int success = tacketAdminMapper.studentCancelTicketHistory(id,request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId(), request.getReason());
+        int success = tacketAdminMapper.studentCancelTicketHistory(id, request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId(), request.getReason());
         if (success != 1) {
             throw new IllegalStateException("取消工单历史写入失败");
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
     }
 
     @Transactional
     @Override
-    public Result adminClose(Long id, ReasonVersionRequest request, LoginResponse loginUser) {
+    public Result adminClose(Long id, ReasonVersionRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "工单不存在");
@@ -492,22 +517,23 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         if (!targetTicket.getVersion().equals(request.getExpectedVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前工单版本号不一致");
         }
-        if ("COMPLETED".equals(targetTicket.getStatus())||"CANCELLED".equals(targetTicket.getStatus())||"CLOSED".equals(targetTicket.getStatus())) {
+        if ("COMPLETED".equals(targetTicket.getStatus()) || "CANCELLED".equals(targetTicket.getStatus()) || "CLOSED".equals(targetTicket.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前工单状态非法");
         }
         int updated = tacketAdminMapper.adminCloseTicket(id, request.getExpectedVersion());
         if (updated != 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "工单已被其他操作更新，请刷新后重试");
         }
-        int success = tacketAdminMapper.adminCloseTicketHistory(id,request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId(), request.getReason());
+        int success = tacketAdminMapper.adminCloseTicketHistory(id, request.getExpectedVersion() + 1, targetTicket.getStatus(), loginUser.getId(), request.getReason());
         if (success != 1) {
             throw new IllegalStateException("关闭工单历史写入失败");
         }
+        redisCacheClient.deleteAfterCommit(RedisConstants.TICKET_DETAILED_KEY + id);
         return Result.success();
     }
 
     @Override
-    public Result queryTicketHistory(Long id, LoginResponse loginUser) {
+    public Result queryTicketHistory(Long id, LoginUser loginUser) {
         if (tacketAdminMapper.selectTicketById(id) == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "工单不存在");
         }
@@ -516,19 +542,19 @@ public class TacketAdminServiceImpl implements TacketAdminService {
     }
 
     @Override
-    public Result studentRating(Long id, StudentRatingRequest request, LoginResponse loginUser) {
+    public Result studentRating(Long id, StudentRatingRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "工单不存在");
         }
-        if(!targetTicket.getReporterId().equals(loginUser.getId())){
+        if (!targetTicket.getReporterId().equals(loginUser.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前用户不是此工单的创建人员");
         }
         if (!"COMPLETED".equals(targetTicket.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前工单状态非法");
         }
         StudentRatingResponse rating = tacketAdminMapper.selectRatingById(id);
-        if(rating!=null){
+        if (rating != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前工单已有评价，不可重复评价");
         }
         int inserted = tacketAdminMapper.insertRating(id, loginUser.getId(), request.getScore(), request.getComment());
@@ -539,7 +565,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
         return Result.success(result);
     }
 
-    private void requireTicketReadAccess(Long id, LoginResponse loginUser) {
+    private void requireTicketReadAccess(Long id, LoginUser loginUser) {
         String role = loginUser.getRole();
         if ("STUDENT".equals(role)) {
             Long reporterId = tacketAdminMapper.findReporterId(id);

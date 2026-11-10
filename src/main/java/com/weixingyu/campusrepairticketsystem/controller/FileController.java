@@ -1,10 +1,10 @@
 package com.weixingyu.campusrepairticketsystem.controller;
 
+import com.weixingyu.campusrepairticketsystem.pojo.entity.LoginUser;
 import com.weixingyu.campusrepairticketsystem.annotation.RequireRole;
 import com.weixingyu.campusrepairticketsystem.pojo.response.Result;
 import com.weixingyu.campusrepairticketsystem.service.FileService;
 import jakarta.annotation.Resource;
-import com.weixingyu.campusrepairticketsystem.pojo.response.LoginResponse;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import jakarta.validation.constraints.*;
 import org.springframework.http.MediaType;
@@ -25,7 +25,7 @@ public class FileController {
     @RequireRole({"STUDENT", "REPAIRER", "ADMIN"})
     @PostMapping(value = "/ticket-images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result uploadTicketImages(@RequestParam("files") @NotEmpty(message="请至少选择一张图片") @Size(max=5,message="一次最多上传5张图片") List<MultipartFile> files,
-                                     @RequestAttribute("loginUser") LoginResponse loginUser) throws Exception {
+                                     @RequestAttribute("loginUser") LoginUser loginUser) throws Exception {
         return fileService.uploadTicketImages(files, loginUser.getId());
     }
 }

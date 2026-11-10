@@ -109,7 +109,7 @@
         SELECT file_url AS url
         FROM ticket_attachment
         WHERE ticket_id = #{ticketId}
-          AND file_type = 'REPORT'
+          AND file_type IN ('REPORT', 'RESOLUTION')
         ORDER BY sort_order ASC, id ASC
     </select>
 

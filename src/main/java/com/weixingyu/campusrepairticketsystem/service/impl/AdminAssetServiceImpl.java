@@ -1,5 +1,6 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import com.weixingyu.campusrepairticketsystem.cache.RedisCacheClient;
 import com.weixingyu.campusrepairticketsystem.mapper.AdminAssetMapper;
 import com.weixingyu.campusrepairticketsystem.mapper.BuildingMapper;
 import com.weixingyu.campusrepairticketsystem.pojo.entity.RepairAsset;
@@ -8,6 +9,7 @@ import com.weixingyu.campusrepairticketsystem.pojo.request.UpdateStatusRequest;
 import com.weixingyu.campusrepairticketsystem.pojo.response.Result;
 import com.weixingyu.campusrepairticketsystem.pojo.response.UpdateStatusResponse;
 import com.weixingyu.campusrepairticketsystem.service.AdminAssetService;
+import com.weixingyu.campusrepairticketsystem.utils.RedisConstants;
 import jakarta.annotation.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,10 +21,10 @@ public class AdminAssetServiceImpl implements AdminAssetService {
     private AdminAssetMapper adminAssetMapper;
     @Resource
     private BuildingMapper buildingMapper;
-
+    @Resource
+    private RedisCacheClient redisCacheClient;
     @Override
     public Result addAsset(AssetRequest assetRequest) {
-
         String name = assetRequest.getName();
 
         String location = assetRequest.getLocation();
@@ -34,6 +36,7 @@ public class AdminAssetServiceImpl implements AdminAssetService {
             assetRequest.setEnabled(true);
         }
         adminAssetMapper.addAsset(assetRequest);
+        redisCacheClient.delete(RedisConstants.BUILDING_ASSET_KEY + assetRequest.getBuildingId());
         return Result.success(assetRequest);
     }
 
@@ -64,6 +67,12 @@ public class AdminAssetServiceImpl implements AdminAssetService {
             return Result.error("此楼宇不存在。请填入正确的楼宇");
         }
         adminAssetMapper.updateAsset(id,assetRequest);
+        Long oldBuildingId = existing.getBuildingId();
+        Long newBuildingId = assetRequest.getBuildingId();
+        redisCacheClient.delete(RedisConstants.BUILDING_ASSET_KEY + oldBuildingId);
+        if (!newBuildingId.equals(oldBuildingId)) {
+            redisCacheClient.delete(RedisConstants.BUILDING_ASSET_KEY + newBuildingId);
+        }
         RepairAsset temp = adminAssetMapper.queryAssetById(id);
         return Result.success(new AssetRequest(temp.getId(), temp.getBuildingId(),temp.getAssetCode(), temp.getName(), temp.getLocation(),temp.getEnabled()));
     }
@@ -80,6 +89,7 @@ public class AdminAssetServiceImpl implements AdminAssetService {
             return Result.success(new UpdateStatusResponse(id,updateStatusRequest.getEnabled()));
         }
         adminAssetMapper.changeStatus(id,updateStatusRequest);
+        redisCacheClient.delete(RedisConstants.BUILDING_ASSET_KEY + existing.getBuildingId());
         Boolean enabledResult=adminAssetMapper.queryAssetById(id).getEnabled();
         return Result.success(new UpdateStatusResponse(id,enabledResult));
     }
