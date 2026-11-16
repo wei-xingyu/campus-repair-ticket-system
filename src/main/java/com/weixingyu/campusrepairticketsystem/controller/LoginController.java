@@ -22,8 +22,8 @@ public class LoginController {
     }
 
     @PostMapping("/logout")
-    public Result logout(@RequestHeader("Authorization") String token) {
-        return loginService.logout(token);
+    public Result logout(@RequestAttribute("loginUser") LoginUser loginUser,@RequestHeader("Authorization") String token) {
+        return loginService.logout(loginUser,token);
     }
 
     @GetMapping("/me")

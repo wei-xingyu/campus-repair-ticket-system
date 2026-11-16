@@ -1,5 +1,6 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import com.weixingyu.campusrepairticketsystem.cache.LoginSessionStore;
 import com.weixingyu.campusrepairticketsystem.mapper.AdminRepairerMapper;
 import com.weixingyu.campusrepairticketsystem.pojo.request.CreateRepairerRequest;
 import com.weixingyu.campusrepairticketsystem.pojo.request.InsertUserToSysUserRequest;
@@ -24,6 +25,9 @@ public class AdminRepairerServiceImpl implements AdminRepairerService {
 
     @Resource
     private PasswordEncoder passwordEncoder;
+
+    @Resource
+    private LoginSessionStore loginSessionStore;
 
     @Override
     public Result queryAllRepairers(String keyword) {
@@ -79,6 +83,9 @@ public class AdminRepairerServiceImpl implements AdminRepairerService {
 
         adminRepairerMapper.updateEnabled(id, updateStatusRequest.getEnabled());
         UpdateStatusResponse updateStatusResponse = adminRepairerMapper.getUpdateStatus(id);
+        if(updateStatusRequest.getEnabled()==false){
+            loginSessionStore.revokeAll(id);
+        }
         return Result.success(updateStatusResponse);
     }
 

@@ -6,18 +6,34 @@ import com.weixingyu.campusrepairticketsystem.utils.RedisConstants;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 @Slf4j
 @Component
 public class RedisCacheClient {
+    private static final Duration CACHE_MISS_WAIT = Duration.ofMillis(500);
+    private static final long CACHE_MISS_RETRY_MS = 25;
+
+    private static final DefaultRedisScript<Long> UNLOCK_SCRIPT =
+            new DefaultRedisScript<>("""
+                    if redis.call('GET', KEYS[1]) == ARGV[1] then
+                        return redis.call('DEL', KEYS[1])
+                    end
+                    return 0
+                    """, Long.class);
+
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
@@ -47,22 +63,58 @@ public class RedisCacheClient {
 
     public <R, ID> R get(String keyPrefix, ID id, Class<R> type,
                          Function<ID, R> dbFallback, Long time, TimeUnit unit) {
+        return get(keyPrefix, id, type, dbFallback, time, unit, false);
+    }
+
+    public <R, ID> R getWithCacheMissLock(String keyPrefix, ID id, Class<R> type,
+                                         Function<ID, R> dbFallback, Long time, TimeUnit unit) {
+        return get(keyPrefix, id, type, dbFallback, time, unit, true);
+    }
+
+    private <R, ID> R get(String keyPrefix, ID id, Class<R> type,
+                          Function<ID, R> dbFallback, Long time, TimeUnit unit,
+                          boolean lockOnCacheMiss) {
         String key = keyPrefix + id;
+        String lockKey = "lock:" + key;
         String json = stringRedisTemplate.opsForValue().get(key);
+        if (json == null && !lockOnCacheMiss) {
+            return loadAndCache(key, id, dbFallback, time, unit);
+        }
         if (json == null) {
-            R value = dbFallback.apply(id);
-            if (value == null) {
-                stringRedisTemplate.opsForValue().set(
-                        key, "", RedisConstants.NULL_OBJECT_TTL, TimeUnit.MINUTES);
-                return null;
+            long deadline = System.nanoTime() + CACHE_MISS_WAIT.toNanos();
+            while (json == null) {
+                if (System.nanoTime() - deadline >= 0) {
+                    throw new ResponseStatusException(
+                            HttpStatus.SERVICE_UNAVAILABLE, "缓存正在重建，请稍后重试");
+                }
+
+                String token = tryLock(lockKey);
+                if (token != null) {
+                    try {
+                        // 另一个请求可能刚回填并释放了锁。
+                        json = stringRedisTemplate.opsForValue().get(key);
+                        if (json == null) {
+                            return loadAndCache(key, id, dbFallback, time, unit);
+                        }
+                    } finally {
+                        unlock(lockKey, token);
+                    }
+                    break;
+                }
+
+                try {
+                    Thread.sleep(CACHE_MISS_RETRY_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new ResponseStatusException(
+                            HttpStatus.SERVICE_UNAVAILABLE, "等待缓存重建被中断", e);
+                }
+                json = stringRedisTemplate.opsForValue().get(key);
             }
-            setWithLogicalExpire(key, value, time, unit);
-            return value;
         }
         if (json.isEmpty()) {
             return null;
         }
-
         RedisData redisData = JSONUtil.toBean(json, RedisData.class);
         String dataJson = JSONUtil.toJsonStr(redisData.getData());
         R value = type.isArray()
@@ -72,9 +124,8 @@ public class RedisCacheClient {
             return value;
         }
 
-        String lockKey = "lock:" + key;
-        if (Boolean.TRUE.equals(stringRedisTemplate.opsForValue().setIfAbsent(
-                lockKey, "1", Duration.ofSeconds(30)))) {
+        String token = tryLock(lockKey);
+        if (token != null) {
             Thread.startVirtualThread(() -> {
                 try {
                     R freshValue = dbFallback.apply(id);
@@ -82,9 +133,21 @@ public class RedisCacheClient {
                         setWithLogicalExpire(key, freshValue, time, unit);
                     }
                 } finally {
-                    stringRedisTemplate.delete(lockKey);
+                    unlock(lockKey, token);
                 }
             });
+        }
+        return value;
+    }
+
+    private <R, ID> R loadAndCache(String key, ID id, Function<ID, R> dbFallback,
+                                  Long time, TimeUnit unit) {
+        R value = dbFallback.apply(id);
+        if (value == null) {
+            stringRedisTemplate.opsForValue().set(
+                    key, "", RedisConstants.NULL_OBJECT_TTL, TimeUnit.MINUTES);
+        } else {
+            setWithLogicalExpire(key, value, time, unit);
         }
         return value;
     }
@@ -106,6 +169,17 @@ public class RedisCacheClient {
                 delete(key);
             }
         });
+    }
+
+    private String tryLock(String lockKey) {
+        String token = UUID.randomUUID().toString();
+        Boolean acquired = stringRedisTemplate.opsForValue()
+                .setIfAbsent(lockKey, token, Duration.ofSeconds(30));
+        return Boolean.TRUE.equals(acquired) ? token : null;
+    }
+
+    private void unlock(String lockKey, String token) {
+        stringRedisTemplate.execute(UNLOCK_SCRIPT, List.of(lockKey), token);
     }
 
 }

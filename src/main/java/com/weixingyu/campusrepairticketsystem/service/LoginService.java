@@ -7,7 +7,7 @@ import com.weixingyu.campusrepairticketsystem.pojo.response.Result;
 public interface LoginService {
     Result login(LoginRequest loginRequest);
 
-    Result logout(String token);
+    Result logout( LoginUser loginUser,String token);
 
     Result me(LoginUser loginUser);
 }

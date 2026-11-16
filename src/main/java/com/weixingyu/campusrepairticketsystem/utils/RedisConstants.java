@@ -12,6 +12,7 @@ public class RedisConstants {
     public static final Long BUILDING_TTL = 30L;
     public static final String BUILDING_ASSET_KEY = "cache:building:asset:";
     public static final Long BUILDING_ASSET_TTL = 10L;
+    public static final String USER_TOKENS_PREFIX = "login:user:";
 
 
 }

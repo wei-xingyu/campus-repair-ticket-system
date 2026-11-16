@@ -1,7 +1,7 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
 import cn.hutool.core.lang.UUID;
-import com.weixingyu.campusrepairticketsystem.cache.RedisCacheClient;
+import com.weixingyu.campusrepairticketsystem.cache.LoginSessionStore;
 import com.weixingyu.campusrepairticketsystem.mapper.LoginMapper;
 import com.weixingyu.campusrepairticketsystem.pojo.entity.LoginUser;
 import com.weixingyu.campusrepairticketsystem.pojo.entity.SysUser;
@@ -11,26 +11,20 @@ import com.weixingyu.campusrepairticketsystem.pojo.response.Result;
 import com.weixingyu.campusrepairticketsystem.service.LoginService;
 import com.weixingyu.campusrepairticketsystem.utils.RedisConstants;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.TimeUnit;
-
 @Service
 @Slf4j
 public class LoginServiceImpl implements LoginService {
+
     @Resource
     LoginMapper loginMapper;
 
     @Resource
-    private RedisCacheClient redisCacheClient;
-
-    @Resource
-    private StringRedisTemplate stringRedisTemplate;
+    private LoginSessionStore loginSessionStore;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -65,14 +59,13 @@ public class LoginServiceImpl implements LoginService {
         loginUser.setName(sysUser.getName());
         loginUser.setRole(roleCode);
         loginUser.setUsername(sysUser.getUsername());
-        redisCacheClient.set(key,loginUser,RedisConstants.LOGIN_USER_TTL, TimeUnit.MINUTES);
+        loginSessionStore.save(token,loginUser);
         return Result.success(loginResponse);
     }
 
     @Override
-    public Result logout(String token) {
-        String key = RedisConstants.LOGIN_USER_KEY + token;
-        stringRedisTemplate.delete(key);
+    public Result logout( LoginUser user,String token) {
+        loginSessionStore.revokeOne(token, user.getId());
         log.info("用户成功退出登录");
         return Result.success();
     }

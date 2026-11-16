@@ -195,7 +195,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
     @Override
     public Result queryById(Long id, LoginUser loginUser) {
         long ttlMinutes = RedisConstants.TICKET_DETAILED_TTL + RandomUtil.randomInt(-5, 6);
-        TicketDetailResponse detail = redisCacheClient.get(
+        TicketDetailResponse detail = redisCacheClient.getWithCacheMissLock(
                 RedisConstants.TICKET_DETAILED_KEY, id, TicketDetailResponse.class,
                 this::loadTicketDetail, ttlMinutes, TimeUnit.MINUTES);
         if (detail == null) {
