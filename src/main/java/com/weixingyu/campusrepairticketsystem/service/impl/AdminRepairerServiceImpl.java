@@ -1,5 +1,7 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import com.weixingyu.campusrepairticketsystem.annotation.RecordOperation;
+
 import com.weixingyu.campusrepairticketsystem.cache.LoginSessionStore;
 import com.weixingyu.campusrepairticketsystem.mapper.AdminRepairerMapper;
 import com.weixingyu.campusrepairticketsystem.pojo.request.CreateRepairerRequest;
@@ -38,6 +40,7 @@ public class AdminRepairerServiceImpl implements AdminRepairerService {
 
     @Transactional
     @Override
+    @RecordOperation(value = "创建维修员", targetType = "REPAIRER", targetIdFromResult = true)
     public Result createRepairer(CreateRepairerRequest request) {
 
         request.setName(request.getName().trim());
@@ -76,6 +79,7 @@ public class AdminRepairerServiceImpl implements AdminRepairerService {
     }
 
     @Override
+    @RecordOperation(value = "修改维修员状态", targetType = "REPAIRER", targetIdArgument = 0)
     public Result updateRepairerStatus(Long id, UpdateStatusRequest updateStatusRequest) {
         if (adminRepairerMapper.selectRepairerById(id) == null) {
             return Result.error("维修员不存在");

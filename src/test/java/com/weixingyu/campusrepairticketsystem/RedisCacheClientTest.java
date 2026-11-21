@@ -9,14 +9,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.Duration;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -26,12 +25,18 @@ class RedisCacheClientTest {
 
     private final RedisCacheClient cache = new RedisCacheClient();
     private ValueOperations<String, String> values;
+    private RLock lock;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
         StringRedisTemplate redis = mock(StringRedisTemplate.class);
         values = mock(ValueOperations.class);
+        RedissonClient redisson = mock(RedissonClient.class);
+        lock = mock(RLock.class);
+        when(redisson.getLock(LOCK_KEY)).thenReturn(lock);
+        when(lock.isHeldByCurrentThread()).thenReturn(true);
+        ReflectionTestUtils.setField(cache, "redissonClient", redisson);
         when(redis.opsForValue()).thenReturn(values);
         ReflectionTestUtils.setField(cache, "stringRedisTemplate", redis);
     }
@@ -39,8 +44,7 @@ class RedisCacheClientTest {
     @Test
     void reusesCacheFilledBeforeLockWasAcquired() {
         when(values.get(KEY)).thenReturn(null, cachedDetail());
-        when(values.setIfAbsent(eq(LOCK_KEY), anyString(), eq(Duration.ofSeconds(30))))
-                .thenReturn(true);
+        when(lock.tryLock()).thenReturn(true);
 
         assertArrayEquals(new String[]{"detail"}, readCachedDetail());
     }
@@ -48,8 +52,7 @@ class RedisCacheClientTest {
     @Test
     void waitsForTheOtherRequestToFillTheCache() {
         when(values.get(KEY)).thenReturn(null, cachedDetail());
-        when(values.setIfAbsent(eq(LOCK_KEY), anyString(), eq(Duration.ofSeconds(30))))
-                .thenReturn(false);
+        when(lock.tryLock()).thenReturn(false);
 
         assertArrayEquals(new String[]{"detail"}, readCachedDetail());
     }

@@ -1,5 +1,7 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import com.weixingyu.campusrepairticketsystem.annotation.RecordOperation;
+
 import com.weixingyu.campusrepairticketsystem.cache.RedisCacheClient;
 import com.weixingyu.campusrepairticketsystem.mapper.AdminAssetMapper;
 import com.weixingyu.campusrepairticketsystem.mapper.BuildingMapper;
@@ -24,6 +26,7 @@ public class AdminAssetServiceImpl implements AdminAssetService {
     @Resource
     private RedisCacheClient redisCacheClient;
     @Override
+    @RecordOperation(value = "新增设备", targetType = "ASSET", targetIdFromResult = true)
     public Result addAsset(AssetRequest assetRequest) {
         String name = assetRequest.getName();
 
@@ -41,6 +44,7 @@ public class AdminAssetServiceImpl implements AdminAssetService {
     }
 
     @Override
+    @RecordOperation(value = "修改设备", targetType = "ASSET", targetIdArgument = 0)
     public Result updateAsset(Long id, AssetRequest assetRequest) {
 
         RepairAsset existing = adminAssetMapper.queryAssetById(id);
@@ -78,6 +82,7 @@ public class AdminAssetServiceImpl implements AdminAssetService {
     }
 
     @Override
+    @RecordOperation(value = "修改设备状态", targetType = "ASSET", targetIdArgument = 0)
     public Result changeStatus(Long id, UpdateStatusRequest updateStatusRequest) {
 
         RepairAsset existing = adminAssetMapper.queryAssetById(id);

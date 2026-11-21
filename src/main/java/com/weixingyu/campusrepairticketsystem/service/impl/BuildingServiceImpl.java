@@ -1,5 +1,7 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import com.weixingyu.campusrepairticketsystem.annotation.RecordOperation;
+
 import com.weixingyu.campusrepairticketsystem.cache.RedisCacheClient;
 import com.weixingyu.campusrepairticketsystem.mapper.BuildingMapper;
 import com.weixingyu.campusrepairticketsystem.pojo.request.AdminBuildRequest;
@@ -27,6 +29,7 @@ public class BuildingServiceImpl implements BuildingService {
     @Resource
     private RedisCacheClient redisCacheClient;
     @Override
+    @RecordOperation(value = "新增楼宇", targetType = "BUILDING", targetIdFromResult = true)
     public Result createBuilding(AdminBuildRequest adminBuildRequest) {
         String key = RedisConstants.BUILDING_KEY + ENABLED_BUILDING_CACHE_ID;
         adminBuildRequest.setName(adminBuildRequest.getName().trim());
@@ -66,6 +69,7 @@ public class BuildingServiceImpl implements BuildingService {
     }
 
     @Override
+    @RecordOperation(value = "修改楼宇", targetType = "BUILDING", targetIdArgument = 0)
     public Result updateBuilding(Long id, AdminBuildRequest adminBuildRequest) {
         String key = RedisConstants.BUILDING_KEY + ENABLED_BUILDING_CACHE_ID;
         AdminBuildRequest old = buildingMapper.selectById(id);
@@ -98,6 +102,7 @@ public class BuildingServiceImpl implements BuildingService {
     }
 
     @Override
+    @RecordOperation(value = "修改楼宇状态", targetType = "BUILDING", targetIdArgument = 0)
     public Result updateBuildingStatus(Long id, UpdateStatusRequest updateStatusRequest) {
         String key = RedisConstants.BUILDING_KEY +ENABLED_BUILDING_CACHE_ID;
         if (buildingMapper.selectById(id) == null) {

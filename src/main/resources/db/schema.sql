@@ -206,3 +206,21 @@ CREATE TABLE IF NOT EXISTS repairer_responsible_building (
     FOREIGN KEY (repairer_id) REFERENCES sys_user(id),
     FOREIGN KEY (building_id) REFERENCES building(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS operation_log (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+    user_id BIGINT DEFAULT NULL COMMENT '操作人用户ID',
+    username VARCHAR(64) DEFAULT NULL COMMENT '操作时的用户名',
+    method_name VARCHAR(255) NOT NULL COMMENT '方法名，格式为类名.方法名',
+    operation VARCHAR(100) NOT NULL COMMENT '业务动作',
+    duration_ms BIGINT UNSIGNED NOT NULL COMMENT '方法耗时，单位为毫秒',
+    status TINYINT NOT NULL COMMENT '执行结果，1成功，0失败',
+    target_type VARCHAR(32) DEFAULT NULL COMMENT '操作对象类型',
+    target_id BIGINT DEFAULT NULL COMMENT '操作对象ID',
+    error_code VARCHAR(64) DEFAULT NULL COMMENT '失败错误码',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '日志写入时间',
+    PRIMARY KEY (id),
+    KEY idx_operation_log_created_at (created_at),
+    KEY idx_operation_log_user_time (user_id, created_at),
+    KEY idx_operation_log_target (target_type, target_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户操作日志';

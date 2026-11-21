@@ -1,5 +1,7 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import com.weixingyu.campusrepairticketsystem.annotation.RecordOperation;
+
 import com.weixingyu.campusrepairticketsystem.pojo.response.Result;
 import com.weixingyu.campusrepairticketsystem.pojo.response.UploadTicketImagesResponse;
 import com.weixingyu.campusrepairticketsystem.service.FileService;
@@ -31,6 +33,7 @@ public class FileServiceImpl implements FileService {
     private AliyunOSSOperator aliyunOSSOperator;
 
     @Override
+    @RecordOperation("上传工单图片")
     public Result uploadTicketImages(List<MultipartFile> files, Long uploaderId) throws Exception {
 
 

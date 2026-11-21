@@ -1,5 +1,7 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import com.weixingyu.campusrepairticketsystem.annotation.RecordOperation;
+
 import cn.hutool.core.util.RandomUtil;
 import com.weixingyu.campusrepairticketsystem.cache.RedisCacheClient;
 import com.weixingyu.campusrepairticketsystem.pojo.entity.LoginUser;
@@ -48,6 +50,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
     @Override
     // 工单和附件必须一起成功或一起撤销，避免只保存一部分。
     @Transactional
+    @RecordOperation(value = "提交报修", targetType = "TICKET", targetIdFromResult = true)
     public Result createTackets(CreateTacketsRequest createTacketsRequest, LoginUser loginUser) {
 
         // 清理首尾空格，并检查必填内容和数据库字段长度限制。
@@ -216,6 +219,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Override
     @Transactional
+    @RecordOperation(value = "分派工单", targetType = "TICKET", targetIdArgument = 0)
     public Result adminDispatch(Long id, AdminDispatchRequest adminDispatchRequest, LoginUser loginUser) {
 
         SysUser targetRepairer = adminRepairerMapper.findEnabledRepairerById(adminDispatchRequest.getAssigneeId());
@@ -262,6 +266,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Override
     @Transactional
+    @RecordOperation(value = "转派工单", targetType = "TICKET", targetIdArgument = 0)
     public Result adminSendTickets(Long id, AdminSendTicketsRequest request, LoginUser loginUser) {
 
         SysUser targetRepairer = adminRepairerMapper.findEnabledRepairerById(request.getAssigneeId());
@@ -292,6 +297,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Override
     @Transactional
+    @RecordOperation(value = "接受工单", targetType = "TICKET", targetIdArgument = 0)
     public Result repairerAccept(Long id, ExpectedVersionRequest request, LoginUser loginUser) {
 
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
@@ -321,6 +327,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Override
     @Transactional
+    @RecordOperation(value = "拒绝工单", targetType = "TICKET", targetIdArgument = 0)
     public Result repairerReject(Long id, ReasonVersionRequest request, LoginUser loginUser) {
 
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
@@ -354,6 +361,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Transactional
     @Override
+    @RecordOperation(value = "开始维修", targetType = "TICKET", targetIdArgument = 0)
     public Result repairerStart(Long id, RepairerStartRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
@@ -382,6 +390,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Transactional
     @Override
+    @RecordOperation(value = "提交处理结果", targetType = "TICKET", targetIdArgument = 0)
     public Result repairerResolution(Long id, RepairerResolutionRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
@@ -425,6 +434,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Transactional
     @Override
+    @RecordOperation(value = "确认完成", targetType = "TICKET", targetIdArgument = 0)
     public Result studentConfirm(Long id, ExpectedVersionRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
@@ -453,6 +463,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Transactional
     @Override
+    @RecordOperation(value = "重开工单", targetType = "TICKET", targetIdArgument = 0)
     public Result studentReopen(Long id, ReasonVersionRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
@@ -481,6 +492,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Transactional
     @Override
+    @RecordOperation(value = "取消工单", targetType = "TICKET", targetIdArgument = 0)
     public Result studentCancel(Long id, CancelTicketRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
@@ -509,6 +521,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
 
     @Transactional
     @Override
+    @RecordOperation(value = "关闭工单", targetType = "TICKET", targetIdArgument = 0)
     public Result adminClose(Long id, ReasonVersionRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {
@@ -542,6 +555,7 @@ public class TacketAdminServiceImpl implements TacketAdminService {
     }
 
     @Override
+    @RecordOperation(value = "评价工单", targetType = "TICKET", targetIdArgument = 0)
     public Result studentRating(Long id, StudentRatingRequest request, LoginUser loginUser) {
         Ticket targetTicket = tacketAdminMapper.selectTicketById(id);
         if (targetTicket == null) {

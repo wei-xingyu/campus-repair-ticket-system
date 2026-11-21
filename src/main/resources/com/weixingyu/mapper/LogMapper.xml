@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.weixingyu.campusrepairticketsystem.mapper.LogMapper">
+    <select id="queryByPage"
+            resultType="com.weixingyu.campusrepairticketsystem.pojo.response.LogRowResponse">
+        select id, user_id, username, method_name, operation, duration_ms,
+               status, target_type, target_id, error_code, created_at
+        from operation_log
+        <where>
+            <if test="userId != null">
+                and user_id = #{userId}
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+            <if test="startTime != null">
+                and created_at &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                and created_at &lt; #{endTime}
+            </if>
+        </where>
+        order by created_at desc, id desc
+    </select>
+    <insert id="insert">
+        insert into operation_log
+            (user_id, username, method_name, operation, duration_ms, status,
+             target_type, target_id, error_code)
+        values
+            (#{userId,jdbcType=BIGINT}, #{username,jdbcType=VARCHAR}, #{methodName},
+             #{operation}, #{durationMs}, #{status}, #{targetType,jdbcType=VARCHAR},
+             #{targetId,jdbcType=BIGINT}, #{errorCode,jdbcType=VARCHAR})
+    </insert>
+</mapper>

@@ -1,5 +1,7 @@
 package com.weixingyu.campusrepairticketsystem.service.impl;
 
+import com.weixingyu.campusrepairticketsystem.annotation.RecordOperation;
+
 import com.weixingyu.campusrepairticketsystem.cache.RedisCacheClient;
 import com.weixingyu.campusrepairticketsystem.mapper.BasicDataMapper;
 import com.weixingyu.campusrepairticketsystem.pojo.request.AdminCategoryRequest;
@@ -41,6 +43,7 @@ public class BasicDataServiceImpl implements BasicDataService {
     }
 
     @Override
+    @RecordOperation(value = "新增故障类别", targetType = "CATEGORY", targetIdFromResult = true)
     public Result createCategory(AdminCategoryRequest adminCategoryRequest) {
 
         String name = adminCategoryRequest.getName().trim();
@@ -66,6 +69,7 @@ public class BasicDataServiceImpl implements BasicDataService {
     }
 
     @Override
+    @RecordOperation(value = "修改故障类别", targetType = "CATEGORY", targetIdArgument = 0)
     public Result updateCategory(Long id, AdminCategoryRequest adminCategoryRequest) {
 
         String name = adminCategoryRequest.getName().trim();
@@ -101,6 +105,7 @@ public class BasicDataServiceImpl implements BasicDataService {
     }
 
     @Override
+    @RecordOperation(value = "修改故障类别状态", targetType = "CATEGORY", targetIdArgument = 0)
     public Result updateCategoryStatus(Long id, AdminCategoryRequest adminCategoryRequest) {
 
         AdminCategoryRequest existing = basicDataMapper.findCategoryById(id);
