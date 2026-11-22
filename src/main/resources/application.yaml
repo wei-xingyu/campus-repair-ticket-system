@@ -6,16 +6,16 @@ spring:
       max-file-size: 5MB
       max-request-size: 26MB
   datasource:
-    url: jdbc:mysql://localhost:3306/campus_repair?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/campus_repair}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password: 123456
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD}
   data:
     redis:
-      host: 192.168.125.129
+      host: ${REDIS_HOST:127.0.0.1}
       port: 6379
       database: 1
-      password: 123321
+      password: ${REDIS_PASSWORD:}
       timeout: 3s
       lettuce:
         pool:
@@ -37,6 +37,6 @@ mybatis:
 
 aliyun:
   oss:
-    endpoint: "https://oss-cn-beijing.aliyuncs.com"
-    bucketName: "java-campus-repair-ticket-system"
-    region: "cn-beijing"
+    endpoint: ${OSS_ENDPOINT:https://oss-cn-beijing.aliyuncs.com}
+    bucketName: ${OSS_BUCKET:}
+    region: ${OSS_REGION:cn-beijing}

@@ -22,6 +22,7 @@ class CompletedInterfacesRegressionTest {
         BuildingMapper mapper = mock(BuildingMapper.class);
         BuildingServiceImpl service = new BuildingServiceImpl();
         ReflectionTestUtils.setField(service, "buildingMapper", mapper);
+        ReflectionTestUtils.setField(service, "redisCacheClient", mock(RedisCacheClient.class));
         AdminBuildRequest request = new AdminBuildRequest(null, "教学楼", null, null);
         doAnswer(call -> { ((AdminBuildRequest)call.getArgument(0)).setId(77L); return null; }).when(mapper).insert(any());
         Result result = service.createBuilding(request);

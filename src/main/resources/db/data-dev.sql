@@ -179,7 +179,7 @@ WHERE t.ticket_no = 'DEV202610190004';
 -- Category images for development tickets. Replace only the two original fixture URLs.
 UPDATE ticket_attachment a
 JOIN ticket t ON t.id = a.ticket_id
-SET a.file_url = 'https://java-campus-repair-ticket-system.oss-cn-beijing.aliyuncs.com/dev-fixtures/category-images/utilities-bee17e0ca527.jpg',
+SET a.file_url = '/demo/attachment.png',
     a.original_filename = 'utilities.jpg', a.size_bytes = 5375
 WHERE (t.ticket_no = 'DEV202610190001' AND a.file_type = 'REPORT'
        AND a.file_url = '/uploads/dev/DEV202610190001/leaking-tap.jpg')
@@ -193,15 +193,15 @@ SELECT t.id, t.reporter_id, 'REPORT', image.file_url, image.filename, 'image/jpe
 FROM ticket t
 JOIN repair_category c ON c.id = t.category_id
 JOIN (
-SELECT '水电' AS category_name, 'https://java-campus-repair-ticket-system.oss-cn-beijing.aliyuncs.com/dev-fixtures/category-images/utilities-bee17e0ca527.jpg' AS file_url, 'utilities.jpg' AS filename, 5375 AS size_bytes
+SELECT '水电' AS category_name, '/demo/attachment.png' AS file_url, 'utilities.jpg' AS filename, 5375 AS size_bytes
 UNION ALL
-SELECT '门窗' AS category_name, 'https://java-campus-repair-ticket-system.oss-cn-beijing.aliyuncs.com/dev-fixtures/category-images/doors-windows-3ecff40116f4.jpg' AS file_url, 'doors-windows.jpg' AS filename, 5487 AS size_bytes
+SELECT '门窗' AS category_name, '/demo/attachment.png' AS file_url, 'doors-windows.jpg' AS filename, 5487 AS size_bytes
 UNION ALL
-SELECT '网络' AS category_name, 'https://java-campus-repair-ticket-system.oss-cn-beijing.aliyuncs.com/dev-fixtures/category-images/network-9d629c177255.jpg' AS file_url, 'network.jpg' AS filename, 4994 AS size_bytes
+SELECT '网络' AS category_name, '/demo/attachment.png' AS file_url, 'network.jpg' AS filename, 4994 AS size_bytes
 UNION ALL
-SELECT '家具' AS category_name, 'https://java-campus-repair-ticket-system.oss-cn-beijing.aliyuncs.com/dev-fixtures/category-images/furniture-6b9cbe129cc2.jpg' AS file_url, 'furniture.jpg' AS filename, 5785 AS size_bytes
+SELECT '家具' AS category_name, '/demo/attachment.png' AS file_url, 'furniture.jpg' AS filename, 5785 AS size_bytes
 UNION ALL
-SELECT '其他' AS category_name, 'https://java-campus-repair-ticket-system.oss-cn-beijing.aliyuncs.com/dev-fixtures/category-images/other-532313117096.jpg' AS file_url, 'other.jpg' AS filename, 4730 AS size_bytes
+SELECT '其他' AS category_name, '/demo/attachment.png' AS file_url, 'other.jpg' AS filename, 4730 AS size_bytes
 ) image ON image.category_name = c.name
 WHERE t.ticket_no IN ('DEV202610190001', 'DEV202610190002', 'DEV202610190003', 'DEV202610190004')
 AND NOT EXISTS (
@@ -211,7 +211,7 @@ AND NOT EXISTS (
 INSERT INTO ticket_attachment (
     ticket_id, uploaded_by, file_type, file_url, original_filename, media_type, size_bytes, sort_order
 )
-SELECT t.id, u.id, 'RESOLUTION', 'https://java-campus-repair-ticket-system.oss-cn-beijing.aliyuncs.com/dev-fixtures/category-images/utilities-bee17e0ca527.jpg',
+SELECT t.id, u.id, 'RESOLUTION', '/demo/attachment.png',
        'utilities.jpg', 'image/jpeg', 5375, 0
 FROM ticket t JOIN sys_user u ON u.username = 'repairer001'
 WHERE t.ticket_no = 'DEV202610190004'

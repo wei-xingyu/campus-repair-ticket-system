@@ -176,18 +176,48 @@ SELECT t.id, 5, 'PENDING_CONFIRMATION', 'COMPLETED', 'CONFIRM', reporter.id, rep
 FROM ticket t JOIN sys_user reporter ON reporter.username = 'student001' JOIN sys_user repairer ON repairer.username = 'repairer001'
 WHERE t.ticket_no = 'DEV202610190004';
 
-INSERT IGNORE INTO ticket_attachment (
+-- Category images for development tickets. Replace only the two original fixture URLs.
+UPDATE ticket_attachment a
+JOIN ticket t ON t.id = a.ticket_id
+SET a.file_url = '/demo/attachment.png',
+    a.original_filename = 'utilities.jpg', a.size_bytes = 5375
+WHERE (t.ticket_no = 'DEV202610190001' AND a.file_type = 'REPORT'
+       AND a.file_url = '/uploads/dev/DEV202610190001/leaking-tap.jpg')
+   OR (t.ticket_no = 'DEV202610190004' AND a.file_type = 'RESOLUTION'
+       AND a.file_url = '/uploads/dev/DEV202610190004/repaired-light.jpg');
+
+INSERT INTO ticket_attachment (
     ticket_id, uploaded_by, file_type, file_url, original_filename, media_type, size_bytes, sort_order
 )
-SELECT t.id, reporter.id, 'REPORT', '/uploads/dev/DEV202610190001/leaking-tap.jpg',
-       'leaking-tap.jpg', 'image/jpeg', 128000, 0
-FROM ticket t JOIN sys_user reporter ON reporter.username = 'student001'
-WHERE t.ticket_no = 'DEV202610190001'
+SELECT t.id, t.reporter_id, 'REPORT', image.file_url, image.filename, 'image/jpeg', image.size_bytes, 0
+FROM ticket t
+JOIN repair_category c ON c.id = t.category_id
+JOIN (
+SELECT '水电' AS category_name, '/demo/attachment.png' AS file_url, 'utilities.jpg' AS filename, 5375 AS size_bytes
 UNION ALL
-SELECT t.id, repairer.id, 'RESOLUTION', '/uploads/dev/DEV202610190004/repaired-light.jpg',
-       'repaired-light.jpg', 'image/jpeg', 156000, 0
-FROM ticket t JOIN sys_user repairer ON repairer.username = 'repairer001'
-WHERE t.ticket_no = 'DEV202610190004';
+SELECT '门窗' AS category_name, '/demo/attachment.png' AS file_url, 'doors-windows.jpg' AS filename, 5487 AS size_bytes
+UNION ALL
+SELECT '网络' AS category_name, '/demo/attachment.png' AS file_url, 'network.jpg' AS filename, 4994 AS size_bytes
+UNION ALL
+SELECT '家具' AS category_name, '/demo/attachment.png' AS file_url, 'furniture.jpg' AS filename, 5785 AS size_bytes
+UNION ALL
+SELECT '其他' AS category_name, '/demo/attachment.png' AS file_url, 'other.jpg' AS filename, 4730 AS size_bytes
+) image ON image.category_name = c.name
+WHERE t.ticket_no IN ('DEV202610190001', 'DEV202610190002', 'DEV202610190003', 'DEV202610190004')
+AND NOT EXISTS (
+    SELECT 1 FROM ticket_attachment a WHERE a.ticket_id = t.id AND a.file_type = 'REPORT'
+);
+
+INSERT INTO ticket_attachment (
+    ticket_id, uploaded_by, file_type, file_url, original_filename, media_type, size_bytes, sort_order
+)
+SELECT t.id, u.id, 'RESOLUTION', '/demo/attachment.png',
+       'utilities.jpg', 'image/jpeg', 5375, 0
+FROM ticket t JOIN sys_user u ON u.username = 'repairer001'
+WHERE t.ticket_no = 'DEV202610190004'
+AND NOT EXISTS (
+    SELECT 1 FROM ticket_attachment a WHERE a.ticket_id = t.id AND a.file_type = 'RESOLUTION'
+);
 
 INSERT IGNORE INTO ticket_rating (ticket_id, reporter_id, score, comment)
 SELECT t.id, reporter.id, 5, '维修及时，问题已解决。'

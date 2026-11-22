@@ -1,0 +1,219 @@
+/* 全局样式：页面底色、侧栏、筛选区、登录页、统计卡片和小屏适配；会影响所有页面。 */
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    font-family: "Microsoft YaHei", sans-serif;
+    color: #24334a;
+    background: #f4f7fb
+}
+
+h1, h2 {
+    font-weight: 600;
+    margin: 0 0 14px
+}
+
+h1 {
+    font-size: 26px
+}
+
+p {
+    line-height: 1.8
+}
+
+.muted {
+    color: #8793a5
+}
+
+.eyebrow {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #5e94d4
+}
+
+.shell {
+    min-height: 100vh
+}
+
+.el-aside {
+    background: #152c47;
+    position: relative
+}
+
+.brand {
+    color: white;
+    font-size: 23px;
+    padding: 32px 24px
+}
+
+.brand span {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 3px;
+    margin-top: 10px;
+    color: #7d9ab9
+}
+
+.el-menu {
+    border: 0;
+    background: transparent
+}
+
+.el-menu-item {
+    color: #b6c7db;
+    margin: 6px 12px;
+    border-radius: 8px
+}
+
+.el-menu-item.is-active, .el-menu-item:hover {
+    background: #254564;
+    color: #fff
+}
+
+.aside-note {
+    color: #7590ad;
+    font-size: 12px;
+    padding: 30px
+}
+
+.el-header {
+    background: white;
+    border-bottom: 1px solid #e9edf3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between
+}
+
+.el-main {
+    padding: 30px;
+    min-width: 0
+}
+
+.heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px
+}
+
+.panel {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid #e8edf4;
+    margin-bottom: 20px
+}
+
+.filters {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px
+}
+
+.filters .el-input, .filters .el-select {
+    width: 180px
+}
+
+.el-pagination {
+    margin-top: 22px;
+    justify-content: flex-end
+}
+
+.login {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 100px;
+    padding: 30px;
+    background: linear-gradient(135deg, #eaf2fc, #f7f9fc)
+}
+
+.login h1 {
+    font-size: 44px;
+    line-height: 1.5;
+    margin-top: 24px
+}
+
+.login-card {
+    width: 380px;
+    padding: 20px;
+    border-radius: 16px
+}
+
+.images {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    flex-wrap: wrap
+}
+
+.images .el-image {
+    width: 100px;
+    height: 90px
+}
+
+.images > div {
+    display: flex;
+    flex-direction: column
+}
+
+.stats {
+    display: grid;
+    grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
+    gap: 18px
+}
+
+.stat {
+    padding: 24px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e8edf4
+}
+
+.stat strong {
+    display: block;
+    font-size: 30px;
+    margin-top: 14px;
+    color: #3679c9
+}
+
+@media (max-width: 760px) {
+    .el-aside {
+        width: 155px !important
+    }
+
+    .el-main {
+        padding: 14px
+    }
+
+    .login {
+        flex-direction: column;
+        gap: 20px
+    }
+
+    .login h1 {
+        font-size: 28px
+    }
+
+    .login-card {
+        max-width: 100%
+    }
+
+    .el-header {
+        height: auto;
+        min-height: 60px;
+        font-size: 12px
+    }
+
+    .heading {
+        gap: 10px
+    }
+
+    .panel {
+        padding: 14px
+    }
+}
